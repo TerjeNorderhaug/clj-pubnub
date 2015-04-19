@@ -1,8 +1,9 @@
-(ns clj-pubnub.client
+ns clj-pubnub.client
   (:use [digest :only [digest]])
   (:require [clj-http.client :as http]
             [cheshire.core :as json]
-            [clojure.contrib.string :as str]))
+            [clojure.string :as str]
+))
 
 (defonce ^{:dynamic true} config
   {})
@@ -49,3 +50,31 @@
              (every? config [:pub-key :sub-key])]}
       (let [uri (build-publish-uri config channel message)]
         (http/get uri)))))
+
+(defn- build-subscribe-uri [config channel]
+  (let [{:keys [pub-key sub-key secret-key origin ssl]} config]
+    (str (if ssl "https" "http") "://"
+         (->> [(or origin default-origin)
+               "subscribe"
+               sub-key
+               (sign channel nil pub-key sub-key secret-key)
+               channel
+               "0"]
+              (map encode-path-segment)
+              (str/join "/")))))
+
+(defn subscribe
+  ([channel]
+     (publish config channel))
+  ([config channel]
+     ({:pre [(string? channel)
+             (every? config [:pub-key :sub-key])]}
+      (let [uri (build-publish-uri config channel message)]
+        (http/get uri)))))
+
+
+
+
+
+
+
