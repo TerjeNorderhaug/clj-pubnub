@@ -46,31 +46,39 @@ ns clj-pubnub.client
   ([channel message]
      (publish config channel message))
   ([config channel message]
-     ({:pre [(string? channel)
+      {:pre [(string? channel)
              (every? config [:pub-key :sub-key])]}
       (let [uri (build-publish-uri config channel message)]
-        (http/get uri)))))
+        (http/get uri)
+        nil)))
 
-(defn- build-subscribe-uri [config channel]
+(defn- build-subscribe-uri [config channel timetoken]
   (let [{:keys [pub-key sub-key secret-key origin ssl]} config]
     (str (if ssl "https" "http") "://"
          (->> [(or origin default-origin)
                "subscribe"
                sub-key
-               (sign channel nil pub-key sub-key secret-key)
+               ; (sign channel nil pub-key sub-key secret-key)
                channel
-               "0"]
+               "0"
+               timetoken]
               (map encode-path-segment)
               (str/join "/")))))
 
-(defn subscribe
+(defn poll
   ([channel]
-     (publish config channel))
+     (poll config channel "0"))
   ([config channel]
-     ({:pre [(string? channel)
+     (poll config channel "0"))
+  ([config channel timetoken]
+      {:pre [(string? channel)
              (every? config [:pub-key :sub-key])]}
-      (let [uri (build-publish-uri config channel message)]
-        (http/get uri)))))
+      (let [uri (build-subscribe-uri config channel timetoken)]
+         (->> (http/get uri)
+             :body
+             json/parse-string
+             (zipmap [:messages :timetoken])))))
+
 
 
 
